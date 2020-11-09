@@ -1,0 +1,1 @@
+// Aici doar dau scatter la tot, aplic filtrul si iau inapoi si fac for-ul in main
