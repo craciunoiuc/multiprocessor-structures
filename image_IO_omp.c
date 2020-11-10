@@ -92,7 +92,6 @@ void images_write(int images_nr, unsigned char ***images, unsigned int **widths,
 		exit(ENOMEM);
 	}
 
-	// Encode todo paralel
 #pragma omp parallel for shared(encoded_images, encoded_images_sz, images, widths, heights, images_nr) private(rc)
 	for (int i = 0; i < images_nr; ++i) {
 		rc = lodepng_encode32(&encoded_images[i], &encoded_images_sz[i],

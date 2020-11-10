@@ -149,7 +149,6 @@ int main(int argc, char *argv[])
 			&widths_recv, &heights_recv);
 
 // Gather images
-
 	if (rank == MASTER) {
 		for (int i = start; i < end; ++i) {
 			memcpy(images[i], images_recv[i],

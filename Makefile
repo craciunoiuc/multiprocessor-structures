@@ -5,19 +5,19 @@ FLAGS=-O0 -Wall -Wextra -Wno-unknown-pragmas -Wno-unused-result
 
 build: omp.exe thread.exe mpi.exe hibrid.exe
 
-omp.exe: lodepng.o image_filtering_omp.c image_IO.c
+omp.exe: lodepng.o image_filtering_omp.c image_IO_omp.c
 	$(CC) $(FLAGS) $(OPENMP) $^ -o $@
 
-thread.exe: lodepng.o image_IO.c image_filtering_threads.c
-	$(CC) $(FLAGS) $^ -o $@
+thread.exe: lodepng.o image_IO_threads.c image_filtering_threads.c
+	$(CC) $(FLAGS) $^ -o $@ -lpthread
 
-mpi.exe: lodepng.o image_IO.c image_filtering_mpi.c
+mpi.exe: lodepng.o image_IO_MPI.c image_filtering_mpi.c
 	$(MPICC) $(FLAGS) $^ -o $@
 
-hibrid.exe: lodepng.o image_IO.c image_filtering_hibrid.c
+hibrid.exe: lodepng.o image_IO_omp.c image_filtering_hibrid.c
 	$(MPICC) $(FLAGS) $(OPENMP) $^ -o $@
 
-lodepng.o: lode/lodepng.c image_IO.c
+lodepng.o: lode/lodepng.c
 	$(CC) $(FLAGS) $^ -c
 
 clean:
