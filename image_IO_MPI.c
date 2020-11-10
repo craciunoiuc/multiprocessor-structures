@@ -26,7 +26,7 @@ int images_read(char *file_name, unsigned char ***images, unsigned int **widths,
 	
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &ntasks);
-
+	printf("GOGOGO\n");
 	if (rank == MASTER) {
 		input_file = fopen(file_name, "r");
 		if (input_file == NULL) {
@@ -39,7 +39,6 @@ int images_read(char *file_name, unsigned char ***images, unsigned int **widths,
 		if (number_of_images < 1) {
 			return -1;
 		}
-
 		// Allocate memory for all image information
 		*images            = malloc(number_of_images * sizeof(unsigned char *));
 		*brightness        = malloc(number_of_images * sizeof(unsigned char *));
@@ -69,32 +68,38 @@ int images_read(char *file_name, unsigned char ***images, unsigned int **widths,
 			}
 		}
 	}
-	if (rank >= number_of_images) {
-		return 0;
-	}
-
 	MPI_Bcast(&number_of_images, 1, MPI_INT, MASTER, MPI_COMM_WORLD);
+	if (number_of_images < ntasks) {
+		if (rank == MASTER)
+			printf("%d images were given and %d tasks, number_of_tasks <= number_of_images, exiting...\n", number_of_images, ntasks);
+		MPI_Finalize();
+		exit(-1);
+	}
 	int to_recv = number_of_images / ntasks;
 	if (rank + 1 == ntasks) {
 		to_recv = (number_of_images % ntasks) ?
 					to_recv + number_of_images % ntasks : to_recv;
 	}
+	printf("YOOO\n");
 	if (rank == MASTER) {
 		
 		int vec_pos = 0;
 		for (int i = 1; i < ntasks; ++i) {
 			int to_send = number_of_images / ntasks;
+			int master_size = to_send;
 			if (i + 1 == ntasks) {
 				to_send = (number_of_images % ntasks) ?
 							to_send + number_of_images % ntasks : to_send;
 			}
-			MPI_Send((*brightness) + vec_pos, to_send,
+			MPI_Send((*brightness) + vec_pos + master_size, to_send,
 					MPI_BYTE, i, MASTER, MPI_COMM_WORLD);
-			MPI_Send((encoded_images_sz) + vec_pos, to_send,
+			MPI_Send((encoded_images_sz) + vec_pos + master_size, to_send,
 					MPI_UNSIGNED_LONG, i, MASTER, MPI_COMM_WORLD);
-			for (int img_nr = vec_pos; img_nr < to_send; ++img_nr) {
-				MPI_Send((encoded_images[img_nr]), to_send,
+			for (int img_nr = vec_pos; img_nr < to_send + vec_pos; ++img_nr) {
+				printf("MASTER %d %d %d %d\n", img_nr, to_send, i, encoded_images_sz[img_nr + master_size]);
+				MPI_Send((encoded_images[img_nr + master_size]), encoded_images_sz[img_nr + master_size],
 					MPI_BYTE, i, MASTER, MPI_COMM_WORLD);
+				printf("SENT\n");
 			}
 			vec_pos += to_send;
 		}
@@ -110,38 +115,46 @@ int images_read(char *file_name, unsigned char ***images, unsigned int **widths,
 			MPI_Finalize();
 			return -ENOMEM;
 		}
-
-		for (int i = 0; i < to_recv; ++i) {
-
-			MPI_Recv((*brightness), to_recv, MPI_BYTE, MASTER, MASTER,
-					MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+		MPI_Recv((*brightness), to_recv, MPI_BYTE, MASTER, MASTER,
+				MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+		
+		MPI_Recv((encoded_images_sz), to_recv, MPI_UNSIGNED_LONG, MASTER,
+				MASTER, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 			
-			MPI_Recv((encoded_images_sz), to_recv, MPI_UNSIGNED_LONG, MASTER,
-					MASTER, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-			
-			for (int img_nr = 0; img_nr < to_recv; ++img_nr) {
-				MPI_Recv((encoded_images) + img_nr, to_recv, MPI_BYTE, MASTER,
-					MASTER, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-			}
+		
+		for (int img_nr = 0; img_nr < to_recv; ++img_nr) {
+			printf("HELP %d %d %d\n", img_nr, to_recv, encoded_images_sz[img_nr]);
+			encoded_images[img_nr] = malloc(encoded_images_sz[img_nr] * sizeof(unsigned char));
+			MPI_Recv(encoded_images[img_nr], encoded_images_sz[img_nr], MPI_BYTE, MASTER,
+				MASTER, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			printf("RECV\n");
 		}
 	}
-
+	printf("TODECODE %d\n", to_recv);
 	for (int i = 0; i < to_recv; ++i) {
-		rc = lodepng_decode32(&(*images)[i], &(*widths)[i],
+		rc = lodepng_decode32((*images) + i, &(*widths)[i],
 		&(*heights)[i], encoded_images[i], encoded_images_sz[i]);
 		if (rc) {
+			printf("DING\n");
 			printf("decode error: %s\n", lodepng_error_text(rc));
 		}
 	}
-
+	printf("DECODED\n");
 	if (rank == MASTER) {
 		fclose(input_file);
 		for (int i = 0; i < number_of_images; ++i) {
 			free(encoded_images[i]);
 		}
+	} else {
+		for (int i = 0; i < to_recv; ++i) {
+			free(encoded_images[i]);
+		}
 	}
+
 	free(encoded_images_sz);
 	free(encoded_images);
+
+	printf("DONE READ %d\n", rank);
 	return (rank == MASTER) ? number_of_images : to_recv;
 }
 
@@ -161,16 +174,20 @@ void images_write(int images_nr, unsigned char ***images, unsigned int **widths,
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &ntasks);
 
-	if (rank == MASTER) {
-		images_nr /= ntasks;
-	}
 
+	printf("START %d\n", images_nr);
+	
 	encoded_images     = malloc(images_nr * sizeof(unsigned char *));
 	encoded_images_sz  = malloc(images_nr * sizeof(size_t));
 	if (!encoded_images || !encoded_images_sz) {
 		perror("Image Writing failed");
 		exit(ENOMEM);
 	}
+
+	if (rank == MASTER) {
+		images_nr /= ntasks;
+	}
+
 
 	for (int i = 0; i < images_nr; ++i) {
 		rc = lodepng_encode32(&encoded_images[i], &encoded_images_sz[i],
@@ -179,8 +196,9 @@ void images_write(int images_nr, unsigned char ***images, unsigned int **widths,
 			printf("encode error: %s\n", lodepng_error_text(rc));
 		}
 	}
-
+	// Trimit encoded_images si encoded_images_sz
 	if (rank == MASTER) {
+		int vec_step = 0;
 		for (int i = 1; i < ntasks; ++i) {
 			int to_recv = total_images / ntasks;
 			int start = to_recv * i;
@@ -188,53 +206,53 @@ void images_write(int images_nr, unsigned char ***images, unsigned int **widths,
 				to_recv = (total_images % ntasks) ?
 							to_recv + total_images % ntasks : to_recv;
 			}
-			MPI_Recv((*widths) + start, to_recv, MPI_UNSIGNED, i,
-					MASTER, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-			MPI_Recv((*heights) + start, to_recv, MPI_UNSIGNED, i,
-					MASTER, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-			
+			MPI_Recv(encoded_images_sz + start + vec_step, to_recv, MPI_UNSIGNED_LONG, i,
+				MASTER, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	
 			for (int j = 0; j < to_recv; ++j) {
-				MPI_Recv((*images)[start + j],
-					4 * (*widths)[start + j] * (*heights)[start + j],
+				printf("From %d Img %d Size %d\n", i, j, encoded_images_sz[start + vec_step + j]);
+				encoded_images[start + vec_step + j] = malloc(encoded_images_sz[start + vec_step + j] * sizeof(unsigned char));
+				MPI_Recv(encoded_images[start + vec_step + j], encoded_images_sz[start + vec_step + j],
 					MPI_BYTE, i, MASTER, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+				printf("DONE one\n");
 			}
+			vec_step += to_recv;
 		}
 	} else {
-		MPI_Send((*widths), images_nr, MPI_UNSIGNED,
-				MASTER, MASTER, MPI_COMM_WORLD);
-		MPI_Send((*heights), images_nr, MPI_UNSIGNED,
-				MASTER, MASTER, MPI_COMM_WORLD);
+		
+		MPI_Send(encoded_images_sz, images_nr, MPI_UNSIGNED_LONG, MASTER, MASTER, MPI_COMM_WORLD);
+
 		for (int i = 0; i < images_nr; ++i) {
-			MPI_Send((*images)[i], 4 * (*widths)[i] * (*heights)[i], MPI_BYTE,
-					MASTER, MASTER, MPI_COMM_WORLD);
+			printf("Size %d img %d\n", encoded_images_sz[i], i);
+			MPI_Send(encoded_images[i], encoded_images_sz[i], MPI_BYTE, MASTER, MASTER, MPI_COMM_WORLD);
+			printf("DONE two\n");
 		}
 	}
 
 	// Write all to files
 	if (rank == MASTER) {
-		for (int i = 0; i < images_nr; ++i) {
+		printf("ceva %d\n", total_images);
+		for (int i = 0; i < total_images; ++i) {
 			char image_name[256];
 			sprintf(image_name, "%s%d%s", image_prefix, i, image_suffix);
-
+			printf("Saving %d\n", i);
 			rc = lodepng_save_file(encoded_images[i], encoded_images_sz[i],
 					image_name);
 			if(rc) {
 				printf("save error: %s\n", lodepng_error_text(rc));
 			}
-			free(encoded_images[i]);
-			free((*images)[i]);
-		}
-	} else {
-		for (int i = 0; i < images_nr; ++i) {
-			free(encoded_images[i]);
-			free((*images)[i]);
 		}
 	}
 
+	//for (int i = 0; i < images_nr; ++i) {
+	//	free(encoded_images[i]);
+	//	free((*images)[i]);
+	//}
 	// Cleanup
-	free(encoded_images);
-	free(encoded_images_sz);
-	free(*images);
-	free(*heights);
-	free(*widths);
+	//free(encoded_images);
+	//free(encoded_images_sz);
+	//free(*images);
+	//free(*heights);
+	//free(*widths);
+	printf("DONE :) %d\n", rank);
 }

@@ -28,7 +28,7 @@ void apply_filter(int nr_of_images, u_int8_t **brightness, u_int8_t ***images,
 					255 : pixel_storage[2];
 		}
 	}
-	free(*brightness);
+	//free(*brightness);
 }
 
 int main(int argc, char *argv[])
@@ -57,8 +57,10 @@ int main(int argc, char *argv[])
 		if (nr_of_images == 0) return 0;
 		return -1;
 	}
+	
+	int real_size = (rank == MASTER) ? nr_of_images / ntasks : nr_of_images;
+	apply_filter(real_size, &brightness, &images, &widths, &heights);
 
-	apply_filter(nr_of_images, &brightness, &images, &widths, &heights);
 
 	images_write(nr_of_images, &images, &widths, &heights);
 
