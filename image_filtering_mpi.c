@@ -28,7 +28,7 @@ void apply_filter(int nr_of_images, u_int8_t **brightness, u_int8_t ***images,
 					255 : pixel_storage[2];
 		}
 	}
-	//free(*brightness);
+	free(*brightness);
 }
 
 int main(int argc, char *argv[])
