@@ -70,7 +70,9 @@ int images_read(char *file_name, unsigned char ***images, unsigned int **widths,
 	MPI_Bcast(&number_of_images, 1, MPI_INT, MASTER, MPI_COMM_WORLD);
 	if (number_of_images < ntasks) {
 		if (rank == MASTER)
-			printf("%d images were given and %d tasks, number_of_tasks <= number_of_images, exiting...\n", number_of_images, ntasks);
+			printf("%d images were given and %d tasks, \
+				number_of_tasks <= number_of_images, exiting...\n",
+				number_of_images, ntasks);
 		MPI_Finalize();
 		exit(-1);
 	}
@@ -94,7 +96,8 @@ int images_read(char *file_name, unsigned char ***images, unsigned int **widths,
 			MPI_Send((encoded_images_sz) + vec_pos + master_size, to_send,
 					MPI_UNSIGNED_LONG, i, MASTER, MPI_COMM_WORLD);
 			for (int img_nr = vec_pos; img_nr < to_send + vec_pos; ++img_nr) {
-					MPI_Send((encoded_images[img_nr + master_size]), encoded_images_sz[img_nr + master_size],
+					MPI_Send((encoded_images[img_nr + master_size]),
+					encoded_images_sz[img_nr + master_size],
 					MPI_BYTE, i, MASTER, MPI_COMM_WORLD);
 				}
 			vec_pos += to_send;
@@ -124,6 +127,8 @@ int images_read(char *file_name, unsigned char ***images, unsigned int **widths,
 				MASTER, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 		}
 	}
+
+#pragma omp parallel for shared(encoded_images, encoded_images_sz, images, widths, heights, number_of_images) private(rc)
 	for (int i = 0; i < to_recv; ++i) {
 		rc = lodepng_decode32((*images) + i, &(*widths)[i],
 		&(*heights)[i], encoded_images[i], encoded_images_sz[i]);
@@ -175,7 +180,7 @@ void images_write(int images_nr, unsigned char ***images, unsigned int **widths,
 		images_nr /= ntasks;
 	}
 
-
+#pragma omp parallel for shared(encoded_images, encoded_images_sz, images, widths, heights, images_nr) private(rc)
 	for (int i = 0; i < images_nr; ++i) {
 		rc = lodepng_encode32(&encoded_images[i], &encoded_images_sz[i],
 			(*images)[i], (*widths)[i],(*heights)[i]);
@@ -193,21 +198,26 @@ void images_write(int images_nr, unsigned char ***images, unsigned int **widths,
 				to_recv = (total_images % ntasks) ?
 							to_recv + total_images % ntasks : to_recv;
 			}
-			MPI_Recv(encoded_images_sz + start + vec_step, to_recv, MPI_UNSIGNED_LONG, i,
-				MASTER, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			MPI_Recv(encoded_images_sz + start + vec_step, to_recv,
+			MPI_UNSIGNED_LONG, i, MASTER, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	
 			for (int j = 0; j < to_recv; ++j) {
-				encoded_images[start + vec_step + j] = malloc(encoded_images_sz[start + vec_step + j] * sizeof(unsigned char));
-				MPI_Recv(encoded_images[start + vec_step + j], encoded_images_sz[start + vec_step + j],
+				int current_image_idx = start + vec_step + j;
+				encoded_images[current_image_idx] = malloc(
+				encoded_images_sz[current_image_idx] * sizeof(unsigned char));
+				MPI_Recv(encoded_images[current_image_idx],
+					encoded_images_sz[current_image_idx],
 					MPI_BYTE, i, MASTER, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 			}
 			vec_step += to_recv;
 		}
 	} else {
 		
-		MPI_Send(encoded_images_sz, images_nr, MPI_UNSIGNED_LONG, MASTER, MASTER, MPI_COMM_WORLD);
+		MPI_Send(encoded_images_sz, images_nr, MPI_UNSIGNED_LONG, MASTER,
+			MASTER, MPI_COMM_WORLD);
 		for (int i = 0; i < images_nr; ++i) {
-			MPI_Send(encoded_images[i], encoded_images_sz[i], MPI_BYTE, MASTER, MASTER, MPI_COMM_WORLD);
+			MPI_Send(encoded_images[i], encoded_images_sz[i], MPI_BYTE,
+			MASTER, MASTER, MPI_COMM_WORLD);
 		}
 	}
 

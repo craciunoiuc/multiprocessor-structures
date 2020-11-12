@@ -13,6 +13,7 @@ void apply_filter(int nr_of_images, u_int8_t **brightness, u_int8_t ***images,
 		u_int64_t image_size = 4LL * (*widths)[i] * (*heights)[i];
 		float factor = 2.f * ((float)((*brightness)[i])) / 100;
 
+#pragma omp parallel for shared(images)
 		for (u_int64_t pixel = 0; pixel < image_size; pixel += 4LL) {
 			if (!(*images)[i][pixel + 3]) continue;
 			u_int16_t pixel_storage[3];

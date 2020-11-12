@@ -14,7 +14,7 @@ thread.exe: lodepng.o image_IO_threads.c image_filtering_threads.c
 mpi.exe: lodepng.o image_IO_MPI.c image_filtering_mpi.c
 	$(MPICC) $(FLAGS) $^ -o $@
 
-hibrid.exe: lodepng.o image_IO_omp.c image_filtering_hibrid.c
+hibrid.exe: lodepng.o image_IO_MPI.c image_filtering_mpi.c
 	$(MPICC) $(FLAGS) $(OPENMP) $^ -o $@
 
 lodepng.o: lode/lodepng.c
