@@ -3,12 +3,15 @@
 
 #include <pthread.h>
 
+// TODO add your own number
 #define NUM_THREADS 8
 
 static inline u_int64_t max(u_int64_t a, u_int64_t b)
 {
 	return (a > b) ? a : b;
 }
+
+// Data structure that is given to the threads
 typedef struct {
     u_int8_t **images;
 	uint *widths;
@@ -18,6 +21,8 @@ typedef struct {
 	int id;
 } image_information_t;
 
+// Each thread applies the brightness filter on the thread_id/num_threads part
+// of an image
 void *threaded_filter(void *args)
 {
 	image_information_t *image_data = (image_information_t *)args;

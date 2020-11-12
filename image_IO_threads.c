@@ -5,8 +5,10 @@
 
 #include "./lode/lodepng.h"
 
+// TODO add your own number of threads
 #define NUM_THREADS 8
 
+// Data structure that is given to the threads
 typedef struct {
 	int id;
 	int number_of_images;
@@ -22,6 +24,7 @@ static inline u_int64_t max(u_int64_t a, u_int64_t b)
 	return (a > b) ? a : b;
 }
 
+// Parallel call to the image encoder
 static void *threaded_encode(void *args)
 {
 	int rc;
@@ -44,6 +47,7 @@ static void *threaded_encode(void *args)
 	return NULL;
 }
 
+// Parallel call to the image decoder
 static void *threaded_decode(void *args)
 {
 	int rc;
@@ -66,8 +70,6 @@ static void *threaded_decode(void *args)
 	return NULL;
 }
 
-// Receives a file and allocates memory to store all images in a matrix
-// Returns the number of images read
 int images_read(char *file_name, unsigned char ***images, unsigned int **widths,
 		unsigned int **heights, unsigned char **brightness)
 {
@@ -150,8 +152,6 @@ int images_read(char *file_name, unsigned char ***images, unsigned int **widths,
 	return number_of_images;
 }
 
-// Receives images to write, writes them to files in the format
-// "output_imageX.png" and frees the memory
 void images_write(int images_nr, unsigned char ***images, unsigned int **widths,
 		unsigned int **heights)
 {

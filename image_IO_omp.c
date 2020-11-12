@@ -4,8 +4,6 @@
 
 #include "./lode/lodepng.h"
 
-// Receives a file and allocates memory to store all images in a matrix
-// Returns the number of images read
 int images_read(char *file_name, unsigned char ***images, unsigned int **widths,
 		unsigned int **heights, unsigned char **brightness)
 {
@@ -74,8 +72,6 @@ int images_read(char *file_name, unsigned char ***images, unsigned int **widths,
 	return number_of_images;
 }
 
-// Receives images to write, writes them to files in the format
-// "output_imageX.png" and frees the memory
 void images_write(int images_nr, unsigned char ***images, unsigned int **widths,
 		unsigned int **heights)
 {

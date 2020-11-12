@@ -5,6 +5,8 @@
 
 #define MASTER 0
 
+// Each task applies the filter on it's images. If the hibrid implementation
+// is run, then each image is split into pieces by openmp.
 void apply_filter(int nr_of_images, u_int8_t **brightness, u_int8_t ***images,
 		uint **widths, uint **heights)
 {

@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+// Checks for valid input file
 int parse_args(int argc, char *argv[])
 {
 	if (argc < 2) {
@@ -23,6 +24,8 @@ int parse_args(int argc, char *argv[])
 	return 0;
 }
 
+// Receives the images to be processed and applies the brightness filter to
+// all of them.
 void apply_filter(int nr_of_images, u_int8_t **brightness, u_int8_t ***images,
 		uint **widths, uint **heights);
 

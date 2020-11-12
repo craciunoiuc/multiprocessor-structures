@@ -12,8 +12,6 @@ static inline int max(int a, int b)
 	return (a > b) ? a : b;
 }
 
-// Receives a file and allocates memory to store all images in a matrix
-// Returns the number of images read
 int images_read(char *file_name, unsigned char ***images, unsigned int **widths,
 		unsigned int **heights, unsigned char **brightness)
 {
@@ -67,7 +65,11 @@ int images_read(char *file_name, unsigned char ***images, unsigned int **widths,
 			}
 		}
 	}
+
+	// Send the number of images
 	MPI_Bcast(&number_of_images, 1, MPI_INT, MASTER, MPI_COMM_WORLD);
+	
+	// If there are more tasks than images, quit
 	if (number_of_images < ntasks) {
 		if (rank == MASTER)
 			printf("%d images were given and %d tasks, \
@@ -76,13 +78,15 @@ int images_read(char *file_name, unsigned char ***images, unsigned int **widths,
 		MPI_Finalize();
 		exit(-1);
 	}
+
 	int to_recv = number_of_images / ntasks;
 	if (rank + 1 == ntasks) {
 		to_recv = (number_of_images % ntasks) ?
 					to_recv + number_of_images % ntasks : to_recv;
 	}
+	
+	// The main tasks sends images to all other threads and the others receive
 	if (rank == MASTER) {
-		
 		int vec_pos = 0;
 		for (int i = 1; i < ntasks; ++i) {
 			int to_send = number_of_images / ntasks;
@@ -128,6 +132,8 @@ int images_read(char *file_name, unsigned char ***images, unsigned int **widths,
 		}
 	}
 
+// The decode is done by each task. If hibrid is chosen, each task creates it's
+// own threads.
 #pragma omp parallel for shared(encoded_images, encoded_images_sz, images, widths, heights, number_of_images) private(rc)
 	for (int i = 0; i < to_recv; ++i) {
 		rc = lodepng_decode32((*images) + i, &(*widths)[i],
@@ -153,8 +159,6 @@ int images_read(char *file_name, unsigned char ***images, unsigned int **widths,
 	return (rank == MASTER) ? number_of_images : to_recv;
 }
 
-// Receives images to write, writes them to files in the format
-// "output_imageX.png" and frees the memory
 void images_write(int images_nr, unsigned char ***images, unsigned int **widths,
 		unsigned int **heights)
 {
@@ -180,6 +184,8 @@ void images_write(int images_nr, unsigned char ***images, unsigned int **widths,
 		images_nr /= ntasks;
 	}
 
+// Each task encodes it's images. If hibrid is chosen, each task creates threads
+// and splits up the work.
 #pragma omp parallel for shared(encoded_images, encoded_images_sz, images, widths, heights, images_nr) private(rc)
 	for (int i = 0; i < images_nr; ++i) {
 		rc = lodepng_encode32(&encoded_images[i], &encoded_images_sz[i],
@@ -188,7 +194,8 @@ void images_write(int images_nr, unsigned char ***images, unsigned int **widths,
 			printf("encode error: %s\n", lodepng_error_text(rc));
 		}
 	}
-	// Trimit encoded_images si encoded_images_sz
+
+	// The encoded images and their sizes are sent back to the main thread
 	if (rank == MASTER) {
 		int vec_step = 0;
 		for (int i = 1; i < ntasks; ++i) {
