@@ -46,7 +46,7 @@ def plot_efficiency():
     ax.bar(x+0.3, hibrid_times_eff, width=0.2, align='center', label='Hibrid (MPI+OpenMP)')
     ax.set_xticks(x)
     ax.set_xticklabels(num_threads)
-    ax.set(title='Eficienta rulare pentru toate versiunile', ylabel='Speedup', xlabel='Numar thread-uri')
+    ax.set(title='Eficienta rulare pentru toate versiunile', ylabel='Eficienta', xlabel='Numar thread-uri')
     ax.legend()
     fig.savefig(plot_path + 'efficiency.png')
     return
