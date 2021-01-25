@@ -1,0 +1,1 @@
+time OMP_NUM_THREADS=20 ./next_prime

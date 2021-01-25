@@ -1,0 +1,30 @@
+Craciunoiu Cezar 343C1 - Laborator 1 SM
+
+Pentru a implementa algoritmii propusi s-au realizat 2 fisiere sursa, ce sunt
+compilate cu ajutorul Makefile-ului si folosesc datele de intrare din 'data.in'.
+
+Mai intai se va discuta, pe scurt codul comun, si apoi cel diferit.
+
+Pentru implementare s-a utilizat limbajul C. La inceputul programului se
+realizeaza citirea datelor cat si alocarile de memorie. Acestea sunt urmate
+de initializarea elementelor ce tin de thread-uri, iar, in sfarsit, "curatenia".
+
+Concurrent read, concurrent write (CRCW)
+In acest caz, in enuntul laboratorului a fost sugerat faptul ca atat scrierea
+cat si citirea se realizeaza paralel (cu ajutorul PRAM). De aceea, pentru a
+sugera acest lucru, inaintea fiecarei citiri din matricele partajate (a, b)
+s-a folosit o bariera. Aceasta are un rol teoretic, acela de a sugera faptul
+ca accesul se realizeaza simultan (chit ca memoria este RAM, deci va executa
+transferul de memorie secvential pentru fiecare thread).
+Dupa ce s-a realizat citirea urmeaza scrierea. Aceasta este simulata prin
+functia de prioritate prin suma. In mod normal, aceasta ar fi realizata in
+PRAM, dar, pentru scopul experimentului, se presupune ca are timp de rulare
+O(1). In aceasta s-au utilizat spinlock-uri pentru a securiza operatia de
+adunare impotriva race condition-urilor.
+
+Concurrent read, exclusive write (CREW).
+In mod asemanator ca la CRCW, in prima parte a executiei, cea de citire, s-au
+utilizat bariere pentru a sugera faptul ca se realizeaza in paralel.
+In a doua parte, s-a implementat algoritmul sugerat de adunare paralela.
+A trebuit sa se utilizeze bariera si la adunare pentru a elimina race
+condition-ul de la scriere.

@@ -1,0 +1,25 @@
+Laborator 6 Software OpenMP- Craciunoiu Cezar - 343C1
+
+Pentru realizarea laboratorului s-a luat codul realizat in MPI saptamana
+trecuta. S-au eliminat toate apelurile si structurile MPI adaugate in cod, si
+s-a revenit la versiunea seriala a codului. Apoi s-a adaugat pragma-ul omp
+peste for-ul ce calculeaza numerele prime.
+
+S-a obtinut astfel un cod care scaleaza destul de bine. Pe calculatorul pe care
+s-a implementat (4 core reale, 8 logice) s-au obtinut timpii aproximativi:
+1 core: 2.6s
+2 core: 1.5s
+3 core: 1.0s
+4 core: 0.8s
+5 core: 0.7s
+6 core: 0.65s
+7 core: 0.6s
+8 core: 0.58s
+9 core: 0.62s
+10 core: 0.63s
+20 core: 0.62s
+Se observa ca o data ce se trece de numarul de nuclee logice disponibile,
+timpii nu mai scad, incep insa sa creasca. OpenMP este destul de bun la
+utilizarea thread-urilor, de aceea nu apare overhead-ul de creare a
+thread-urilor in cazul cu 20. Acesta nici nu le porneste daca nu le vede
+utilitatea (ca in cazul unui for).
